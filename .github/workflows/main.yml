@@ -1,0 +1,44 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 设置 Flutter 环境
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: 初始化 iOS 工程与依赖
+        run: |
+          flutter create . --platforms=ios --org com.offline
+          flutter pub get
+
+      - name: 注入 iOS 相机与相册隐私权限
+        run: |
+          PLIST="ios/Runner/Info.plist"
+          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string '离线账本需要使用相机拍摄消费小票'" $PLIST || true
+          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string '离线账本需要读取相册中的小票照片'" $PLIST || true
+
+      - name: 编译 iOS (免证书模式)
+        run: flutter build ios --release --no-codesign
+
+      - name: 打包为标准 Payload IPA
+        run: |
+          mkdir -p build/ios/iphoneos/Payload
+          cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
+          cd build/ios/iphoneos
+          zip -r smart-ledger.ipa Payload
+
+      - name: 上传 iOS 安装包
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-ledger-ios-ipa
+          path: build/ios/iphoneos/smart-ledger.ipa
