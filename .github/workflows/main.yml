@@ -20,6 +20,7 @@ jobs:
         run: |
           flutter create . --project-name smart_ledger --platforms=ios --org com.offline
           flutter pub get
+          cd ios && pod install && cd ..
 
       - name: 注入 iOS 相机与相册隐私权限
         run: |
@@ -27,16 +28,21 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string '离线账本需要使用相机拍摄消费小票'" $PLIST || true
           /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string '离线账本需要读取相册中的小票照片'" $PLIST || true
 
-      - name: 编译 iOS (免证书纯净模式)
+      - name: 编译 iOS 真机工程 (绕过证书限制)
         run: |
-          flutter build ios --config-only
-          xcodebuild -workspace ios/Runner.xcworkspace \
+          # 强制在 Xcode 工程中关掉签名校验
+          sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = ""/g' ios/Runner.xcodeproj/project.pbxproj || true
+          sed -i '' 's/CODE_SIGNING_REQUIRED = YES/CODE_SIGNING_REQUIRED = NO/g' ios/Runner.xcodeproj/project.pbxproj || true
+
+          # 原生 xcodebuild 编译 Release 真机架构
+          xcodebuild build \
+            -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
-            -destination 'generic/platform=iOS' \
+            -sdk iphoneos \
             -derivedDataPath build/ios_derived \
-            CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY=""
 
       - name: 打包为标准 Payload IPA
