@@ -20,7 +20,6 @@ jobs:
         run: |
           flutter create . --project-name smart_ledger --platforms=ios --org com.offline
           flutter pub get
-          cd ios && pod install && cd ..
 
       - name: 注入 iOS 相机与相册隐私权限
         run: |
@@ -28,32 +27,31 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string '离线账本需要使用相机拍摄消费小票'" $PLIST || true
           /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string '离线账本需要读取相册中的小票照片'" $PLIST || true
 
-      - name: 编译 iOS 真机工程 (绕过证书限制)
+      - name: 自动生成 Podfile 并安装依赖
         run: |
-          # 强制在 Xcode 工程中关掉签名校验
+          flutter precache --ios
+          cd ios
+          pod install || true
+          cd ..
+
+      - name: 编译 iOS 真机工程 (全自动免证书模式)
+        run: |
+          # 强制在 Xcode 工程中关掉所有签名校验
           sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = ""/g' ios/Runner.xcodeproj/project.pbxproj || true
           sed -i '' 's/CODE_SIGNING_REQUIRED = YES/CODE_SIGNING_REQUIRED = NO/g' ios/Runner.xcodeproj/project.pbxproj || true
 
-          # 原生 xcodebuild 编译 Release 真机架构
-          xcodebuild build \
-            -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -sdk iphoneos \
-            -derivedDataPath build/ios_derived \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY=""
+          # 执行编译
+          flutter build ios --release --no-codesign
 
       - name: 打包为标准 Payload IPA
         run: |
-          mkdir -p build/Payload
-          cp -r build/ios_derived/Build/Products/Release-iphoneos/Runner.app build/Payload/
-          cd build
+          mkdir -p build/ios/iphoneos/Payload
+          cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
+          cd build/ios/iphoneos
           zip -r smart-ledger.ipa Payload
 
       - name: 上传 iOS 安装包
         uses: actions/upload-artifact@v4
         with:
           name: smart-ledger-ios-ipa
-          path: build/smart-ledger.ipa
+          path: build/ios/iphoneos/smart-ledger.ipa
