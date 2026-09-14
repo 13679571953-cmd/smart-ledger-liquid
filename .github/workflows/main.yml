@@ -18,7 +18,7 @@ jobs:
 
       - name: 初始化 iOS 工程与依赖
         run: |
-          flutter create . --platforms=ios --org com.offline
+          flutter create . --project-name smart_ledger --platforms=ios --org com.offline
           flutter pub get
 
       - name: 注入 iOS 相机与相册隐私权限
