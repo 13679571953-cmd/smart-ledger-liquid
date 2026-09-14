@@ -27,18 +27,27 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string '离线账本需要使用相机拍摄消费小票'" $PLIST || true
           /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string '离线账本需要读取相册中的小票照片'" $PLIST || true
 
-      - name: 编译 iOS (免证书模式)
-        run: flutter build ios --release --no-codesign
+      - name: 编译 iOS (免证书纯净模式)
+        run: |
+          flutter build ios --config-only
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/ios_derived \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY=""
 
       - name: 打包为标准 Payload IPA
         run: |
-          mkdir -p build/ios/iphoneos/Payload
-          cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
-          cd build/ios/iphoneos
+          mkdir -p build/Payload
+          cp -r build/ios_derived/Build/Products/Release-iphoneos/Runner.app build/Payload/
+          cd build
           zip -r smart-ledger.ipa Payload
 
       - name: 上传 iOS 安装包
         uses: actions/upload-artifact@v4
         with:
           name: smart-ledger-ios-ipa
-          path: build/ios/iphoneos/smart-ledger.ipa
+          path: build/smart-ledger.ipa
