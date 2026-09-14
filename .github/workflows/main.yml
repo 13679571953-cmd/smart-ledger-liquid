@@ -20,12 +20,24 @@ jobs:
       - name: 设置 Flutter 环境
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.2'
           channel: 'stable'
 
-      - name: 初始化 Android 工程与解析依赖
+      - name: 生成 Android 平台骨架 (保护 pubspec 不被覆盖)
         run: |
+          # 备份你的原始依赖配置
+          cp pubspec.yaml pubspec.yaml.bak
+          
+          # 创建 Android 模板目录
           flutter create . --project-name smart_ledger --platforms=android --org com.offline
+          
+          # 还原你的真实配置文件
+          cp pubspec.yaml.bak pubspec.yaml
+          
+          # 确保最低支持版本为 SDK 21 (MLKit/SQLCipher 强制要求)
+          sed -i 's/minSdkVersion = flutter.minSdkVersion/minSdkVersion = 21/g' android/app/build.gradle || true
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle || true
+          
+          # 拉取依赖
           flutter pub get
 
       - name: 编译 Release APK
