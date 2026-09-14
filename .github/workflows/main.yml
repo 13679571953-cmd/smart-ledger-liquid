@@ -20,9 +20,10 @@ jobs:
       - name: 设置 Flutter 环境
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.22.2'
           channel: 'stable'
 
-      - name: 初始化 Android 平台与依赖
+      - name: 初始化 Android 工程与解析依赖
         run: |
           flutter create . --project-name smart_ledger --platforms=android --org com.offline
           flutter pub get
